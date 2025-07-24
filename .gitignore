@@ -51,8 +51,7 @@ htmlcov/
 #  Data & models
 # -----------------------------------------------------------------------------
 data/
-models/*.txt
-models/*.json
+models/
 *.parquet
 *.csv
 *.xlsx
