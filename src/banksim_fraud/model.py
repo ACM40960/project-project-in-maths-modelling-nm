@@ -21,13 +21,13 @@ def train_ensemble(X, y, ratio=UNDERSAMPLE_RATIO, n_models=NUM_MODELS) -> List[l
     return boosters
 
 # ----------------------------------------------------------------
-def choose_threshold(boosters: List[lgb.Booster], X_valid, y_valid, min_recall=0.90) -> float:
-    proba = np.mean([b.predict(X_valid) for b in boosters], axis=0)
-    prec, rec, thr = precision_recall_curve(y_valid, proba)
-    f1 = 2*prec*rec/(prec+rec+1e-9)
-    idx = np.where(rec >= min_recall)[0]
-    best = idx[np.argmax(f1[idx])]
+def choose_threshold(boosters, X_val, y_val, min_precision=0.90):
+    proba = np.mean([b.predict(X_val) for b in boosters], axis=0)
+    prec, rec, thr = precision_recall_curve(y_val, proba)
+    idx  = np.where(prec >= min_precision)[0]
+    best = idx[np.argmax(rec[idx])]        # highest recall among those points
     return float(thr[best])
+
 
 # ----------------------------------------------------------------
 def save(boosters: List[lgb.Booster], threshold: float):
