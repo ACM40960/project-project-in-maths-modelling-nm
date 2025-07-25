@@ -13,7 +13,10 @@ dependencies = [
     "scikit-learn>=1.3",
     "networkx>=3.0",
     "fastapi>=0.111",
-    "uvicorn[standard]>=0.29"
+    "uvicorn[standard]>=0.29",
+    "sdv>=1.5.0",
+    "streamlit>=1.25",
+    "python-dotenv"
 ]
 
 [project.scripts]
