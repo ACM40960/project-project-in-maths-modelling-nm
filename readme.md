@@ -1,39 +1,94 @@
-&#x20;     &#x20;
+# Fraud Detection in Financial Transactions
+
+This project builds, tunes, and evaluates multiple machine learning models for credit card fraud detection using the open-source **BankSim** dataset.  
+It includes synthetic data generation, feature engineering, class imbalance strategies, and model deployment components.
+
+---
 
 ## Table of Contents
 
-1. [Abstract](#abstract)
-2. [Project Description](#project-description)
-   - [Key Components](#key-components)
-   - [Imbalance Strategies](#imbalance-strategies)
-   - [Project Goals](#project-goals)
-3. [Project Structure](#project-structure)
-4. [Installation](#installation)
-   - [Prerequisites](#prerequisites)
-   - [Steps](#steps)
-   - [Notes](#installation-notes)
-5. [Data Source](#data-source)
-6. [Feature Engineering](#feature-engineering)
-7. [Model Training](#model-training)
-   - [Quick Start](#quick-start)
-   - [Custom Training](#custom-training)
-8. [Evaluation](#evaluation)
-9. [Deployment](#deployment)
+1. [Overview](#overview)
+2. [Project Structure](#project-structure)
+3. [Installation](#installation)
+4. [Synthetic Data](#synthetic-data)
+5. [Feature Engineering](#feature-engineering)
+6. [Modeling Approaches](#modeling-approaches)
+7. [Evaluation](#evaluation)
+8. [Scoring API](#scoring-api)
+9. [Live Dashboard](#live-dashboard)
 10. [Results](#results)
-11. [Contributing](#contributing)
-12. [License](#license)
-13. [Contact](#contact)
-14. [Credits](#credits)
+11. [Credits](#credits)
 
-## Abstract
+---
 
-Credit‑card fraud is rare—less than 2 % of transactions—but costly.\
-This repository demonstrates a production‑minded pipeline that ingests the open‑source **BankSim** dataset, engineers behaviour‑driven features, and trains imbalance‑aware tree ensembles (LightGBM & XGBoost) to flag suspicious swipes in near‑real time.\
-The ensemble attains an **AUROC of 0.985** and retains sub‑10 ms scoring latency, making it suitable for real‑time decisioning.
+## Overview
 
-## Project Description
+Fraud detection is a rare-event classification problem with high costs for false negatives. We build and benchmark four modeling pipelines on the **BankSim** dataset:
 
-The notebook and scripts walk through the entire ML life‑cycle—from raw CSV to a deployable micro‑service.
+This project tackles financial fraud detection as a rare-event classification task using the **BankSim** dataset.  
+We systematically explored and compared four modeling approaches, all grounded in domain-informed behavioral features and tailored class imbalance strategies.
+
+---
+### Highlights:
+- Evaluated multiple classifiers — including Logistic Regression, Random Forest, XGBoost, and LightGBM — before finalizing **a tuned LightGBM ensemble with a 0.02 undersampling ratio**, which achieved the best balance of precision, recall, and latency.
+- Engineered 39 behavioral and temporal features such as rolling z-scores, transaction velocity, and customer–merchant familiarity using BankSim’s event log format.
+- Compared **four imbalance-aware techniques**:
+  1. Weighted LightGBM (Optuna-tuned)
+  2. Easy-negative undersampled LightGBM ensemble (×5)
+  3. SMOTE + LightGBM
+  4. Weighted XGBoost (Optuna-tuned)
+- All models evaluated on **out-of-time splits**, using AUPRC and AUROC as primary metrics.
+- Final deployment includes a real-time **FastAPI scoring endpoint** and a **Streamlit dashboard** visualizing fraud scores as transactions stream in.
+
+This end-to-end solution demonstrates how principled feature design and imbalance handling can yield scalable, interpretable fraud detection systems that outperform generic baselines in both accuracy and responsiveness.
+
+---
+
+### Project Structure
+```text
+banksim-fraud/
+├── src/
+│   └── banksim_fraud/
+│       ├── api.py                 # FastAPI scoring service
+│       ├── features.py            # Feature generation
+│       ├── model.py               # Model I/O and prediction
+│       └── config.py              # Paths, threshold, etc.
+├── tools/
+│   ├── dashboard.py               # Streamlit monitoring UI
+│   ├── stream_and_score.py        # Synthetic stream → API
+│   ├── run_demo.py                # Orchestrates all components
+│   └── generate_synthetic_data.py # SDV-based data synthesis
+├── models/                        # Trained models and schemas
+├── data/                          # Raw, processed, and scored data
+├── assets/                        # Images, plots, diagrams
+├── requirements.txt
+└── README.md
+```
+
+### Installation
+```
+git clone https://github.com/yourname/banksim-fraud
+cd banksim-fraud
+
+python -m venv venv
+source venv/bin/activate  # Windows: venv\\Scripts\\activate
+
+pip install -r requirements.txt
+
+```
+
+
+### Synthetic Data Generation
+
+```
+python tools/generate_synthetic_data.py \
+  --input data/bs140513_032310.csv \
+  --output data/synthetic_txns.csv \
+  --rows 50000
+
+```
+
+
 
 ### Key Components
 
@@ -49,163 +104,213 @@ The notebook and scripts walk through the entire ML life‑cycle—from raw CSV 
 - **Model persistence** – boosters saved as binary `.txt` artifacts consumable by C++/Python runtimes.
 - **Feature schema export** – `feature_saver.py` writes a JSON feature schema (`models/features.json`) that the inference API uses to validate incoming requests.
 
-### Imbalance Strategies
+## Methodology
 
-Fraud makes up \~1.2 % of records. The repo compares cost‑sensitive weighting, undersampling, and synthetic minority oversampling (SMOTE) to mitigate bias.
+### 1. Dataset Preparation
 
-### Project Goals
+We used the **BankSim synthetic financial dataset**, a benchmark dataset generated using agent-based modeling to simulate realistic banking behavior.  
+It contains approximately **594,643** timestamped transactions, each described by the following raw fields:
 
-- Ship a **re‑usable template** for fraud modelling on tabular data.
-- Maintain **explainability** via SHAP values to satisfy PSD2 & card‑scheme audit trails.
-- Provide a **deployment path** (FastAPI micro‑service) with <10 ms prediction latency.
+- `step`: Time (in hours) since the beginning of the simulation (1–740)
+- `customer`: Unique customer identifier
+- `merchant`: Unique merchant identifier
+- `age`: Customer age group
+- `gender`: Customer gender
+- `category`: Transaction type/category
+- `amount`: Monetary value of the transaction
+- `fraud`: Binary label (1 = fraud, 0 = legitimate)
 
-## Project Structure
+A sample of the first five rows is shown below:
 
-```text
-fraud_detection_pipeline/
-├── data/                       # Raw & interim datasets
-├── notebook/                   # Exploratory analysis & feature crafting
-│   └── fraud_pipeline.ipynb
-├── src/
-│   ├── config.py               # Global paths & constants
-│   ├── prepare_data.py         # Cleansing & feature engineering
-│   ├── train.py                # Model training CLI
-│   ├── evaluate.py             # Metric & plot generation
-│   ├── serve.py                # FastAPI inference server
-│   └── utils.py
-├── models/                     # Saved boosters & encoders
-├── requirements.txt
-├── Dockerfile                  # Containerised inference image
-├── .gitignore
-└── README.md
-```
+| step | customer      | age | gender | zipcodeOri | merchant     | zipMerchant | category          | amount | fraud |
+|------|---------------|-----|--------|-------------|--------------|-------------|-------------------|--------|--------|
+| 0    | C1093826151   | 4   | M      | 28007       | M348934600   | 28007       | es_transportation | 4.55   | 0      |
+| 0    | C352968107    | 2   | M      | 28007       | M348934600   | 28007       | es_transportation | 39.68  | 0      |
+| 0    | C2054744914   | 4   | F      | 28007       | M1823072687  | 28007       | es_transportation | 26.89  | 0      |
+| 0    | C1760612790   | 3   | M      | 28007       | M348934600   | 28007       | es_transportation | 17.25  | 0      |
+| 0    | C757503768    | 5   | M      | 28007       | M348934600   | 28007       | es_transportation | 35.72  | 0      |
 
-## Installation
+---
 
-### Prerequisites
+#### Preprocessing Steps
 
-- Python **3.10+**
-- `git`, `make`
-- Optional: Docker (for containerised serving)
+We performed the following steps to prepare the data for modeling:
 
-### Steps
+- **Removed nulls or duplicates** (though BankSim is clean by design, this was verified)
+- **Categorical encoding**:
+  - Converted `customer`, `merchant`, `gender`, `category`, and `age` into encoded features
+  - One-hot encoding was applied selectively (e.g., `category`, `gender`)
+-  **Temporal alignment**:
+  - The `step` column (1 unit = 1 hour) was retained and used to reconstruct transaction sequences
+  - Used to define time-aware features like 24-hour rolling windows
+-  **Train/Test split**:
+  - To simulate real-time deployment, we created an **out-of-time split**:
+    - Training set: transactions where `step ≤ 600` (~80%)
+    - Testing set: transactions where `step > 600` (~20%)
 
-```bash
-# 1. Clone
-git clone https://github.com/<your‑handle>/fraud_detection_pipeline.git
-cd fraud_detection_pipeline
+This procedure produced a clean, fully numeric feature matrix with consistent row-level semantics: each row represents a single transaction, described by both raw and engineered features, and labeled as fraudulent or not.
 
-# 2. Create & activate virtual env
-python -m venv venv
-source venv/bin/activate          # Windows: venv\\Scripts\\activate
+---
 
-# 3. Install deps
-pip install -r requirements.txt
+### 2. Feature Engineering
 
-# 4. Run quick demo
-make demo                          # trains a weighted LGBM & prints metrics
-```
+Effective fraud detection requires features that capture **temporal behavior**, **transactional patterns**, and **entity interactions**. While the raw BankSim dataset includes only basic fields like amount, customer ID, merchant ID, and category, we engineered 39 new features to enable models to learn from behavioral signals over time.
 
-### Installation Notes
+Our feature engineering process followed these principles:
 
-- On Debian‑based Linux you may need: `sudo apt-get install build-essential libssl-dev`.
-- Apple Silicon users: set `export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES` when using XGBoost.
+- **Temporal alignment**: Features were constructed such that only information from **prior transactions** was used — no data leakage from future activity.
+- **Entity-aware**: Features were computed per **customer**, **merchant**, or **customer–merchant pair** to capture personal and network-based behavior.
+- **Real-time feasible**: All features can be computed in streaming mode and used for instant scoring.
 
-#### Using Poetry (alternative)
+We grouped the engineered features into the following categories:
 
-If you prefer **Poetry** over plain `pip`, do:
+---
 
-```bash
-pip install poetry
-poetry install            # installs according to pyproject.toml
-poetry run make demo      # same quick demo inside the venv
-```
+#### Temporal Context Features
 
-## Data Source
+These features model user behavior **over time**, especially within rolling windows:
 
-The project uses the **BankSim synthetic financial dataset** (⭳ `bs140513_032310.csv`, 600 K transactions).\
-If the file is not present under `data/raw/`, run:
+| Feature                | Description                                                                 |
+|------------------------|-----------------------------------------------------------------------------|
+| `amount_zscore_24h`    | Z-score of current amount vs customer’s prior 24h spending                 |
+| `txn_count_24h`        | Number of transactions in last 24h (by customer)                           |
+| `mean_amount_24h`      | Rolling mean of customer’s transaction amounts over past 24h              |
+| `step_delta`           | Time difference (in steps) from previous transaction                      |
 
-```bash
-make fetch-data
-```
+Purpose: capture abnormal spending, bursts, or lulls.
 
-to download it from the original Zenodo mirror.
+---
 
-## Feature Engineering
+#### Customer–Merchant Interaction Features
 
-| Feature               | Type  | Description                                           |
-| --------------------- | ----- | ----------------------------------------------------- |
-| `amount_zscore_24h`   | float | Z‑score of transaction amount vs customer’s last 24 h |
-| `txn_count_24h`       | int   | Number of customer transactions in last 24 h          |
-| `merchant_occurences` | int   | Cumulative customer‑merchant pair count               |
-| `is_night`            | bool  | 1 if 00:00–06:00                                      |
-| `cat_(*)`             | dummy | One‑hot encoded purchase category                     |
+These features describe familiarity and recurrence in customer–merchant pairings:
 
-All features are generated via `prepare_data.py` and cached under `data/processed/`.
+| Feature                   | Description                                                       |
+|---------------------------|-------------------------------------------------------------------|
+| `merchant_occurrences`    | Total number of times a customer has transacted with this merchant |
+| `is_first_time_pair`      | Binary flag if this is the first occurrence of this pair           |
+| `unique_merchants_count`  | Count of distinct merchants the customer has interacted with       |
 
-## Model Training
+Purpose: surface rare or novel interactions, which are often more suspicious.
 
-### Quick Start
+---
 
-```bash
-python src/train.py \
-  --model weighted_lgbm \
-  --output models/lgb_weighted.txt
-```
+#### Time-of-Day Features
 
-### Custom Training
+These features flag transactions that occur during unusual hours:
 
-See `python src/train.py --help` for the full CLI—toggle model type, Optuna study size, early stopping, and device settings (CPU/GPU).
+| Feature       | Description                                 |
+|---------------|---------------------------------------------|
+| `is_night`    | 1 if transaction occurs between 00:00–06:00 |
 
-## Evaluation
+Purpose: many fraudulent activities spike during low-traffic hours.
 
-Run
+---
 
-```bash
-python src/evaluate.py --model models/lgb_weighted.txt
-```
+#### Categorical Encodings
 
-to generate:
+The raw field `category` is one of the only true categorical fields in BankSim. It was one-hot encoded into its different categories.
+We also one-hot encoded `gender` and any other discrete fields where applicable.
 
-- Confusion matrix (`images/confusion_matrix.png`)
-- ROC & PR curves (`images/roc_curve.png`, `images/pr_curve.png`)
-- Calibration plot (`images/calibration_curve.png`)
+#### Implementation Notes
+
+- Engineered features were added in `features.py`, using rolling `groupby().apply()` for customer-based windows.
+- Caching and memoization were used to speed up feature computation across large datasets.
+- Missing values were handled by filling with 0 (for counts) or rolling medians (for stats).
+- All features were standardized where appropriate to stabilize learning.
 
 
 
+### 3. Modeling & Imbalance Handling Strategies
+
+Fraud detection in BankSim presents a significant **class imbalance** challenge — with frauds representing only **~1.2%** of all transactions.  
+To address this, we implemented four modeling pipelines, each paired with a different **imbalance mitigation strategy**, and evaluated them under consistent conditions.
+
+All models were trained on the same feature set and validated using a strict **out-of-time split** (step > 600).  
+Metrics focused on **AUPRC** (primary), **AUROC**, **Recall@FPR**, and **Precision@k**.
+
+---
+
+#### Strategy 1: Weighted LightGBM (Baseline)
+
+- **Approach**: Applied class weighting using `scale_pos_weight = non-fraud / fraud`.
+- **Tuning**: Hyperparameters optimized via **Optuna** (20 trials).
+- **Outcome**: Delivered a strong baseline with minimal tuning effort.
+- **Advantages**:
+  - Preserves full data
+  - Quick to train
+  - Low risk of overfitting
+
+---
+
+#### Strategy 2: Easy-Negative Undersample Ensemble (5× LightGBM)
+
+- **Approach**: Used `RandomUnderSampler` to downsample clear non-fraud cases to a 0.02 ratio.
+- Trained **five LightGBM models**, each on a differently bootstrapped undersampled dataset.
+- Predictions were **averaged** to improve stability and generalization.
+
+- **Advantages**:
+  - Boosted fraud recall and AUPRC
+  - Reduces majority-class dominance
+- **Tradeoff**:
+  - Higher training time (5× models)
+  - Some risk of discarding informative negatives
+
+---
+
+#### Strategy 3: SMOTE + LightGBM
+
+- **Approach**: Used SMOTE to synthetically oversample the fraud class to 10%.
+- Trained a single LightGBM on this augmented dataset.
+
+- **Advantages**:
+  - Balances the class ratio without dropping real data
+- **Tradeoff**:
+  - Synthetic samples can distort decision boundaries
+  - Slightly lower performance than undersampled ensemble in this context
+
+---
+
+#### Strategy 4: Weighted XGBoost
+
+- **Approach**: Applied `scale_pos_weight` and tuned using **Optuna** (20 trials) with `aucpr` as the objective.
+- Trained a single robust XGBoost model with regularized depth.
+
+- **Advantages**:
+  - Strong generalization
+  - Native support for class imbalance and boosting regularization
+- **Tradeoff**:
+  - Slower to train than LightGBM
+  - Requires deeper parameter tuning
+
+---
+
+### Summary of Results
+
+All models were benchmarked on the same engineered features and holdout set.  
+The **best performing model** was the **LightGBM ensemble with a 0.02 undersampling ratio**, which achieved the highest AUPRC and stable recall across thresholds.
+
+This strategy was ultimately chosen for deployment in the real-time scoring pipeline.
+
+
+### 4. Evaluation Protocol
+
+All models were evaluated on a **strict out-of-time split** (step > 600), simulating real-world streaming performance.
+
+We reported the following metrics:
+
+- **AUPRC** (primary metric due to extreme imbalance)
+- **AUROC**
+- **Precision@k** (top-k flagged transactions)
+- **Recall @ 0.1% FPR** (fraud recall when very few false alarms allowed)
+
+The best-performing model — **LightGBM with undersampling ratio 0.02** — was chosen for deployment.
 
 
 
 
-## Deployment
-
-The repository ships a lightweight FastAPI service:
-
-```bash
-uvicorn src.serve:app --port 8000
-```
-
-`POST /predict` expects a JSON feature vector and returns fraud probability. See `serve.py` for details.\
-A Dockerfile is provided for containerized deployment:
-
-```bash
-docker build -t fraud-scorer .
-docker run -p 8000:8000 fraud-scorer
-```
-
-## Results
-
-| Metric                 | Score  |
-| ---------------------- | ------ |
-| **AUROC**              | 0.985  |
-| **AUPRC**              | 0.612  |
-| **Recall @ 0.1 % FPR** | 0.74   |
-| **Latency (p95)**      | 8.1 ms |
 
 
-
-> *Numbers above are averaged over a 5‑fold temporal split.*
 
 ## Contributing
 
@@ -218,7 +323,7 @@ Distributed under the MIT License. See `LICENSE` for details.
 
 ## Contact
 
-Maintainer – [Your Name](mailto\:your.email@example.com)
+Maintainer – Mani Jose(mailto\:manijosevg@gmail.com), Nakul Krishna(mailto\:nakulkrishna96@gmail.com)
 
 ## Credits
 
