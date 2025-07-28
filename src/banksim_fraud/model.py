@@ -53,3 +53,9 @@ def predict_proba(boosters: List[lgb.Booster], row_vec: np.ndarray) -> float:
 def classify(boosters: List[lgb.Booster], threshold: float, row_vec: np.ndarray):
     p = predict_proba(boosters, row_vec)
     return int(p >= threshold), p
+
+# ----------------------------------------------------------------
+def predict_batch(boosters: List[lgb.Booster], X: np.ndarray) -> np.ndarray:
+    preds = np.stack([b.predict(X) for b in boosters])
+    return np.mean(preds, axis=0)
+
