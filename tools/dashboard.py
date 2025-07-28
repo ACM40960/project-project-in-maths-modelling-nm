@@ -8,7 +8,7 @@ import os
 DATA_PATH = "data/live_scored_txns.csv"
 
 st.set_page_config(layout="wide")
-st.title("🚨 Live BankSim Fraud Dashboard")
+st.title("Live BankSim Simulation Fraud Dashboard")
 
 placeholder = st.empty()
 
@@ -54,7 +54,7 @@ while True:
             df_time["rolling_rate"] = df_time["fraud"].rolling(50, min_periods=1).mean()
             st.line_chart(df_time.set_index("step")["rolling_rate"])
 
-            # 🧠 Model confidence histogram
+            # Model confidence histogram
             st.markdown("### 🧠 Fraud Probability Distribution")
             fig2, ax2 = plt.subplots(figsize=(6, 3))
             ax2.hist(df["probability"], bins=30, color="skyblue", edgecolor="black")

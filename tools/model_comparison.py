@@ -8,6 +8,7 @@ This script compares four fraud detection modeling strategies on the preprocesse
     4. Weighted XGBoost (Optuna)
 
 Outputs a sorted score table based on AUPRC and saves results as CSV.
+Also saves per-model predictions for evaluation curve plotting.
 """
 
 import sys
@@ -28,13 +29,15 @@ sys.path.append("src")
 from banksim_fraud.features import engineer, feature_list
 
 # Define metrics
-
 def pr_auc(y_true, y_proba):
     return average_precision_score(y_true, y_proba)
 
 # Load raw data and engineer features
 RAW_PATH = "data/bs140513_032310.csv"
-SAVE_PATH = "data/all_model_scores.csv"
+SAVE_PATH = "models/model_scores.csv"
+PRED_PATH = "models/final_predictions.csv"
+PRED_ALL_PATH = "models/final_predictions_all.csv"
+
 data_raw = pd.read_csv(RAW_PATH)
 data = engineer(data_raw)
 num_cols = feature_list(data)
@@ -51,6 +54,7 @@ assert len(X_test) > 0, "Test set is empty."
 # Class imbalance ratio
 pos_w = (y_train == 0).sum() / (y_train == 1).sum()
 scores = []
+predictions = []  # collect model name + predictions
 
 # -------------------------------------------------------------------
 # 1. Weighted LightGBM (Optuna)
@@ -79,6 +83,7 @@ lgb_best = LGBMClassifier(**study.best_params, scale_pos_weight=pos_w, objective
 lgb_best.fit(X_train, y_train)
 pred_lgb = lgb_best.predict_proba(X_test)[:, 1]
 scores.append(("LGB-Weighted", pr_auc(y_test, pred_lgb), roc_auc_score(y_test, pred_lgb)))
+predictions.append(("LGB-Weighted", pred_lgb))
 
 # -------------------------------------------------------------------
 # 2. Undersample Ensemble (5× LGBM)
@@ -95,7 +100,9 @@ def lgb_ensemble(ratio):
 
 for ratio in [0.02, 0.05, 0.10]:
     pred_eu = lgb_ensemble(ratio)
-    scores.append((f"LGB-EU {ratio}", pr_auc(y_test, pred_eu), roc_auc_score(y_test, pred_eu)))
+    model_name = f"LGB-EU {ratio}"
+    scores.append((model_name, pr_auc(y_test, pred_eu), roc_auc_score(y_test, pred_eu)))
+    predictions.append((model_name, pred_eu))
 
 # -------------------------------------------------------------------
 # 3. SMOTE + LightGBM
@@ -107,6 +114,7 @@ lgb_sm = LGBMClassifier(n_estimators=400, learning_rate=0.05, num_leaves=63, ran
 lgb_sm.fit(X_sm, y_sm)
 pred_sm = lgb_sm.predict_proba(X_test)[:, 1]
 scores.append(("LGB-SMOTE 0.10", pr_auc(y_test, pred_sm), roc_auc_score(y_test, pred_sm)))
+predictions.append(("LGB-SMOTE 0.10", pred_sm))
 
 # -------------------------------------------------------------------
 # 4. Weighted XGBoost (Optuna)
@@ -134,6 +142,7 @@ xgb_best = XGBClassifier(**study2.best_params, scale_pos_weight=pos_w, eval_metr
 xgb_best.fit(X_train, y_train)
 pred_xgb = xgb_best.predict_proba(X_test)[:, 1]
 scores.append(("XGB-Weighted", pr_auc(y_test, pred_xgb), roc_auc_score(y_test, pred_xgb)))
+predictions.append(("XGB-Weighted", pred_xgb))
 
 # -------------------------------------------------------------------
 # Save + Print Score Table
@@ -144,5 +153,27 @@ results.to_csv(SAVE_PATH, index=False)
 print("\n=== Out-of-Time Model Comparison ===")
 print(results.sort_values("AUPRC", ascending=False).to_string(index=False))
 
+# -------------------------------------------------------------------
+# Save per-model predictions (for plotting PR/ROC curves)
+# -------------------------------------------------------------------
+all_rows = []
+for name, preds in predictions:
+    for yt, yp in zip(y_test, preds):
+        all_rows.append({"Model": name, "y_true": yt, "y_prob": yp})
 
+pd.DataFrame(all_rows).to_csv(PRED_ALL_PATH, index=False)
+print(f"✅ Saved: {PRED_ALL_PATH}")
 
+# -------------------------------------------------------------------
+# Save best model predictions (standalone file for app or baseline eval)
+# -------------------------------------------------------------------
+best_idx = results["AUPRC"].idxmax()
+best_model_name = results.loc[best_idx, "Model"]
+best_pred = dict(predictions)[best_model_name]
+
+print(f"\nSaving predictions from best model: {best_model_name}")
+pd.DataFrame({
+    "y_true": y_test,
+    "y_prob": best_pred
+}).to_csv(PRED_PATH, index=False)
+print(f"✅ Saved: {PRED_PATH}")

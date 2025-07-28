@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # directory that holds the saved boosters + threshold.json
-MODEL_DIR = Path(__file__).resolve().parent / "models"
+MODEL_DIR = Path(__file__).resolve().parent.parent.parent / "models"
 MODEL_DIR.mkdir(exist_ok=True)
 
 # ensemble settings
