@@ -49,29 +49,95 @@ This project tackles financial fraud detection as a rare-event classification ta
 ## Project Structure - mani
 ```text
 banksim-fraud/
+├── assets/                       # Stored images, plots for reports/dashboards
+├── data/                         # Raw and processed data (BankSim CSVs)
+│   ├── bs140513_032310.csv
+│   ├── live_scored_txns.csv     # Live scored output (dashboard reads this)
+│   └── synthetic_txns.csv       # Synthetic data generated via SDV
+├── models/                       # Trained ML model artifacts (LightGBM, XGBoost, etc.)
 ├── src/
-│   └── banksim_fraud/
-│       ├── api.py                 # FastAPI scoring service
-│       ├── features.py            # Feature generation
-│       ├── model.py               # Model I/O and prediction
-│       └── config.py              # Paths, threshold, etc.
-├── tools/
-│   ├── dashboard.py               # Streamlit monitoring UI
-│   ├── stream_and_score.py        # Synthetic stream → API
-│   ├── run_demo.py                # Orchestrates all components
-│   └── generate_synthetic_data.py # SDV-based data synthesis
-├── models/                        # Trained models and schemas
-├── data/                          # Raw, processed, and scored data
-├── assets/                        # Images, plots, diagrams
-├── requirements.txt
-└── README.md
+│   └── banksim_fraud/            # Core package: API, config, features, model logic
+│       ├── api.py                # FastAPI scoring app
+│       ├── cli.py                # Optional CLI tools or entry points
+│       ├── config.py             # Global settings (paths, thresholds, colors)
+│       ├── features.py           # Feature engineering pipeline
+│       ├── init.py               # Makes this a Python package
+│       └── model.py              # Model loading and prediction logic
+├── tools/                        # Scripts for orchestration, monitoring, analysis
+│   ├── dashboard.py              # Streamlit-based live monitoring UI
+│   ├── feature_saver.py          # Persists feature sets for model input
+│   ├── generate_synthetic_data.py# SDV-based synthetic transaction generator
+│   ├── model_comparison.py       # Script for comparing model metrics
+│   ├── plot_model_scores.py      # Plot AUROC, AUPRC, calibration, etc.
+│   ├── run_demo.py               # Launches API, streamer, and dashboard together
+│   └── stream_and_score.py       # Streams synthetic txns → scores via API
+├── .gitignore                    # Git ignore rules
+└── requirements.txt              # Python dependencies
+
+
 ```
 
-### Setup - mani
+### Setup
+
+To run the BankSim fraud detection system locally, follow these steps:
+
+#### Basic Setup
+
+1. Clone the Repository
+
+```
+git clone https://github.com/yourname/banksim-fraud.git
+cd banksim-fraud
+
+```
+
+2. Install Python Dependencies
+
+```
+pip install -r requirements.txt
+```
+
+3. Install package for usage
+
+```
+pip install -e .
+```
+#### Using the Package
+
+1. Training Models
+
+```
+banksim-train {banksim-dataset-path}
+```
+
+This command trains all models, saves them to models/.
+
+#### Available Tools
+
+| Script                             | Description                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------ |
+| `tools/feature_saver.py`           | Saves final model features to `models/features.json` for inference-time schema validation. |
+| `tools/generate_synthetic_data.py` | Generates synthetic BankSim-like transactions using **GaussianCopula** (via SDV).          |
+| `tools/model_comparison.py`        | Evaluates all models and writes `model_scores.csv` for metric comparison.                  |
+| `tools/plot_model_scores.py`       | Creates AUPRC, AUROC, and bar charts from model scores. Output saved in `assets/images/`.  |
+| `tools/run_demo.py`                | Runs the full system: API, Streamlit dashboard, and streaming simulation.                  |
+| `tools/stream_and_score.py`        | Simulates real-time transactions and streams them to the `/score` endpoint.                |
+
+Example: Run the Full End-to-End Demo
+```
+python tools/run_demo.py
+```
+This will:
+
+* Start the FastAPI scoring service at http://localhost:8000/score
+* Launch the Streamlit dashboard at http://localhost:8501
+* Begin real-time scoring using stream_and_score.py
+
+
 
 ## Methodology
 
-### Dataset
+### Dataset - nakul
 
 ### Feature Engineering
 
