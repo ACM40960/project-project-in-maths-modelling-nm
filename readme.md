@@ -46,7 +46,7 @@ This project tackles financial fraud detection as a rare-event classification ta
 
 ---
 
-## Project Structure - mani
+## Project Structure
 ```text
 banksim-fraud/
 ├── assets/                       # Stored images, plots for reports/dashboards
@@ -346,8 +346,6 @@ Models are loaded from the `models/` directory. Feature validation is performed 
 
 ---
 
-### Fast API POC
-
 ### Synthetic Data Generation
 
 To simulate a real-time transaction environment and test our pipeline under varying conditions, we utilized the **SDV (Synthetic Data Vault)** library. This toolkit is well-suited for generating tabular data with similar statistical properties as a given dataset—in our case, the original BankSim dataset.
@@ -373,9 +371,22 @@ Generated records were streamed using the `stream_and_score.py` utility to test 
 
 ## Dashboard
 
+The interactive fraud monitoring dashboard is built using Streamlit and provides real-time visual feedback on model predictions and fraud alerts.
 
+You can launch the complete system—including the API, streamer, and dashboard—using a single command:
 
+```
+python tools/run_demo.py
+```
+This script orchestrates:
 
+* A FastAPI scoring service (src/banksim_fraud/api.py)
+
+* A synthetic streaming engine (tools/stream_and_score.py)
+
+* A Streamlit dashboard for visualizing fraud predictions (tools/dashboard.py)
+
+---
 
 ## Credits
 
@@ -384,7 +395,3 @@ Generated records were streamed using the `stream_and_score.py` utility to test 
 Models are loaded from the `models/` directory. Feature validation is performed using `features.json`. The system supports sub-10ms latency (95th percentile).
 
 ---
-
-## Credits
-
-(Existing content unchanged)
