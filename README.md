@@ -7,19 +7,31 @@ This project builds, tunes, and evaluates multiple machine learning models for c
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Literature Review](#literature-review)
+   * [Highlights](#highlights)
+2. [Requirements](#requirements)
 3. [Project Structure](#project-structure)
-4. [Installation](#installation)
+4. [Setup](#setup)
+   * [Basic Setup](#basic-setup)
+   * [Using the Package](#using-the-package)
+   * [Available Tools](#available-tools)
 5. [Methodology](#methodology)
-
-  * [Synthetic Data](#synthetic-data)
-  * [Feature Engineering](#feature-engineering)
-  * [Modeling Approaches](#modeling-approaches)
-  * [Evaluation](#evaluation)
-  * [Scoring API](#scoring-api)
-6. [Live Dashboard](#live-dashboard)
-7. [Results](#results)
-8. [Credits](#credits)
+   * [Dataset](#dataset)
+   * [Feature Engineering](#feature-engineering)
+   * [Modeling Approaches](#modeling-approaches)
+   * [Evaluation](#evaluation)
+     * [Precision-Recall Curves (All Models)](#precision-recall-curves-all-models)
+     * [ROC Curves (All Models)](#roc-curves-all-models)
+6. [Model Performance – LightGBM Ensemble (EU 0.05)](#model-performance--lightgbm-ensemble-eu-005)
+   * [AUROC vs AUPRC Summary](#auroc-vs-auprc-summary)
+   * [Calibration & Confusion Matrix](#calibration--confusion-matrix)
+   * [Feature Importance](#feature-importance)
+7. [Scoring API](#scoring-api)
+8. [Real-Time Working POC](#real-time-working-poc)
+9. [Synthetic Data Generation](#synthetic-data-generation)
+10. [Dashboard](#dashboard)
+11. [License](#license)
+12. [References](#references)
+13. [Contributors](#contributors)
 
 ---
 
@@ -27,24 +39,27 @@ This project builds, tunes, and evaluates multiple machine learning models for c
 
 Fraud detection is a rare-event classification problem with high costs for false negatives. We build and benchmark four modeling pipelines on the **BankSim** dataset.
 
-This project tackles financial fraud detection as a rare-event classification task using the **BankSim** dataset. We systematically explored and compared four modeling approaches, all grounded in domain-informed behavioral features and tailored class imbalance strategies.
+This project systematically compares four modeling approaches, all grounded in domain-informed behavioral features and tailored class imbalance strategies.
 
 ---
 
-### Highlights:
 
-* Evaluated multiple classifiers — including Logistic Regression, Random Forest, XGBoost, and LightGBM — before finalizing **a tuned LightGBM ensemble with a 0.02 undersampling ratio**, which achieved the best balance of precision, recall, and latency.
-* Engineered 39 behavioral and temporal features such as rolling z-scores, transaction velocity, and customer–merchant familiarity using BankSim’s event log format.
-* Compared **four imbalance-aware techniques**:
+### Highlights
 
+- Evaluated multiple classifiers — including Logistic Regression, Random Forest, XGBoost, and LightGBM — before finalizing **a tuned LightGBM ensemble with a 0.05 undersampling ratio**, which achieved the best balance of precision, recall, and latency.
+- Engineered 39 behavioral and temporal features such as rolling z-scores, transaction velocity, and customer–merchant familiarity.
+- Compared **four imbalance-aware techniques**:
   1. Weighted LightGBM (Optuna-tuned)
   2. Easy-negative undersampled LightGBM ensemble (×5)
   3. SMOTE + LightGBM
   4. Weighted XGBoost (Optuna-tuned)
-* All models evaluated on **out-of-time splits**, using AUPRC and AUROC as primary metrics.
-* Final deployment includes a real-time **FastAPI scoring endpoint** and a **Streamlit dashboard** visualizing fraud scores as transactions stream in.
+- Models evaluated on **out-of-time splits**, using AUPRC and AUROC as primary metrics.
+- Deployment includes a real-time **FastAPI scoring endpoint** and a **Streamlit dashboard** for monitoring.
 
 ---
+
+
+
 
 ## Project Structure
 ```text
@@ -52,30 +67,61 @@ banksim-fraud/
 ├── assets/                       # Stored images, plots for reports/dashboards
 ├── data/                         # Raw and processed data (BankSim CSVs)
 │   ├── bs140513_032310.csv
-│   ├── live_scored_txns.csv     # Live scored output (dashboard reads this)
-│   └── synthetic_txns.csv       # Synthetic data generated via SDV
-├── models/                       # Trained ML model artifacts (LightGBM, XGBoost, etc.)
+│   ├── live_scored_txns.csv      # Live scored output
+│   └── synthetic_txns.csv        # Synthetic data generated via SDV
+├── models/                       # Trained ML model artifacts
 ├── src/
-│   └── banksim_fraud/            # Core package: API, config, features, model logic
+│   └── banksim_fraud/
 │       ├── api.py                # FastAPI scoring app
-│       ├── cli.py                # Optional CLI tools or entry points
-│       ├── config.py             # Global settings (paths, thresholds, colors)
+│       ├── cli.py                # CLI entry points
+│       ├── config.py             # Global settings
 │       ├── features.py           # Feature engineering pipeline
-│       ├── init.py               # Makes this a Python package
-│       └── model.py              # Model loading and prediction logic
-├── tools/                        # Scripts for orchestration, monitoring, analysis
-│   ├── dashboard.py              # Streamlit-based live monitoring UI
-│   ├── feature_saver.py          # Persists feature sets for model input
-│   ├── generate_synthetic_data.py# SDV-based synthetic transaction generator
-│   ├── model_comparison.py       # Script for comparing model metrics
-│   ├── plot_model_scores.py      # Plot AUROC, AUPRC, calibration, etc.
-│   ├── run_demo.py               # Launches API, streamer, and dashboard together
-│   └── stream_and_score.py       # Streams synthetic txns → scores via API
-├── .gitignore                    # Git ignore rules
-└── requirements.txt              # Python dependencies
-
+│       ├── __init__.py
+│       └── model.py              # Model loading & prediction logic
+├── tools/
+│   ├── dashboard.py              # Streamlit dashboard
+│   ├── feature_saver.py          # Save final features to JSON
+│   ├── generate_synthetic_data.py# Generate synthetic transactions
+│   ├── model_comparison.py       # Compare models and output scores
+│   ├── plot_model_scores.py      # Generate AUROC/AUPRC plots
+│   ├── run_demo.py               # Launch API, streamer, dashboard
+│   └── stream_and_score.py       # Stream synthetic txns to API
+├── .gitignore
+└── requirements.txt
 
 ```
+
+
+### Requirements
+* Python: 3.9 or later
+
+* Key dependencies:
+
+  * LightGBM – gradient boosting model
+
+  * XGBoost – gradient boosting model
+
+  * Optuna – hyperparameter optimization
+
+  * imbalanced-learn – SMOTE, undersampling
+
+  * scikit-learn – ML utilities & metrics
+
+  * SDV – synthetic data generation
+
+  * FastAPI – API framework
+
+  * Streamlit – dashboard visualization
+
+  * pandas, numpy – data handling
+
+  * matplotlib – plotting
+
+---
+
+
+
+
 
 ### Setup
 
@@ -88,7 +134,6 @@ To run the BankSim fraud detection system locally, follow these steps:
 ```
 git clone https://github.com/yourname/banksim-fraud.git
 cd banksim-fraud
-
 ```
 
 2. Install Python Dependencies
@@ -124,7 +169,7 @@ This command trains all models, saves them to models/.
 | `tools/stream_and_score.py`        | Simulates real-time transactions and streams them to the `/score` endpoint.                |
 
 Example: Run the Full End-to-End Demo
-```
+``` bash
 python tools/run_demo.py
 ```
 This will:
@@ -137,7 +182,36 @@ This will:
 
 ## Methodology
 
-### Dataset - nakul
+### Dataset
+We use the BankSim dataset — an agent-based simulation of real-world financial transactions — as the foundation for training and evaluating our fraud detection models.
+Original paper: López-Rojas & Axelsson (2014) — BankSim: A bank payment simulation for fraud detection research. [BankSim Dataset on Kaggle](https://www.kaggle.com/datasets/ealaxi/banksim1/data)
+
+
+Data format: CSV file (bs140513_032310.csv) with ~594,000 transaction records.
+
+#### Schema
+Each row represents a single transaction with the following fields:
+
+| Column        | Description                                  |
+|---------------|----------------------------------------------|
+| step          | Hour of simulation (1–740)                   |
+| customer      | Unique anonymized customer ID                |
+| merchant      | Unique anonymized merchant ID                |
+| age           | Customer age group                           |
+| gender        | Customer gender (M/F)                        |
+| category      | Transaction category/type                    |
+| amount        | Transaction amount in currency units         |
+| zipcodeOri    | Origin ZIP code                              |
+| zipMerchant   | Merchant ZIP code                            |
+| fraud         | Fraud flag (1 = fraud, 0 = legitimate)       |
+
+The dataset is highly imbalanced:
+
+* Fraud rate: approximately 1.2%
+
+* No missing values.
+
+
 
 ### Feature Engineering
 
@@ -225,7 +299,7 @@ Each model’s predictions were saved and analyzed using a set of visual tools (
 
 ---
 
-**🔸 Precision-Recall Curves (All Models)**
+#### Precision-Recall Curves (All Models)
 
 ![PR Curves – All Models](assets/images/pr_curves_all_models.png)
 
@@ -236,52 +310,18 @@ highlighting the tradeoff between capturing fraud and avoiding false alarms.
 
 ---
 
-**🔸 ROC Curves (All Models)**
+#### ROC Curves (All Models)
 
 ![ROC Curves – All Models](assets/images/roc_curves_all_models.png)
-
 The ROC curves for all models are tightly packed near the top-left corner, indicating excellent separation between fraud and non-fraud. Despite this, ROC alone can overstate performance in imbalanced datasets—hence the focus on AUPRC in our selection process.
-
-We conducted a thorough evaluation of all models using the holdout test set (step > 600), focusing on rare-event detection performance. Key metrics included:
-
-* **AUPRC (Area Under Precision-Recall Curve)** – preferred for imbalanced classification
-* **AUROC** – overall discriminative power
-* **Precision\@k** – relevance among top-k alerts
-* **Recall @ 0.1% FPR** – sensitivity when false positives are tightly constrained
-
-| Model          | AUPRC  | AUROC  |
-| -------------- | ------ | ------ |
-| LGB-EU 0.05    | 0.9578 | 0.9993 |
-| LGB-EU 0.02    | 0.9567 | 0.9993 |
-| LGB-EU 0.10    | 0.9566 | 0.9993 |
-| LGB-SMOTE 0.10 | 0.9551 | 0.9993 |
-| LGB-Weighted   | 0.9468 | 0.9991 |
-| XGB-Weighted   | 0.9423 | 0.9988 |
-
-Each model’s predictions were saved and analyzed using a set of visual tools (in `assets/images/`):
-
-* **ROC and PR curves** for both individual and comparative views
-* **Calibration curves** to inspect score reliability
-* **Confusion matrices** at operating thresholds
-* **Feature importance plots** for model explainability
-
 ---
-
-### 🔹 PR Curves Of  Models
-
-![ROC Curve – Best Model](assets/images/combined_auroc_auprc_summary.png)
-
-
-The ROC curve hugs the top-left corner,
-indicating near-perfect discrimination.
-The PR curve shows **very high precision even at full recall**, confirming that this model performs reliably in a production setting with class imbalance.
 
 
 ## Model Performance – LightGBM Ensemble (EU 0.05)
 
 This section focuses on performance analysis of the **best model**: the LightGBM Ensemble with a 0.05 undersampling ratio.
 
-### 🔹 AUROC vs AUPRC Summary
+### AUROC vs AUPRC Summary
 
 ![AUROC vs AUPRC Scatter](assets/images/combined_roc_pr_curve.png)
 
@@ -296,7 +336,7 @@ This model offers the best precision-recall tradeoff, meaning it can detect most
 ---
 
 
-### 🔹 Calibration & Confusion Matrix
+### Calibration & Confusion Matrix
 
 ![Calibration Curve](assets/images/combined_calibration_confusion.png)
 
@@ -304,7 +344,7 @@ The calibration curve shows that predicted fraud probabilities are well-aligned 
 
 ---
 
-### 🔹 Feature Importance
+### Feature Importance
 
 ![lgbm_feature_importance.png](assets%2Fimages%2Flgbm_feature_importance.png)
 
@@ -333,16 +373,24 @@ Example request:
   ...
 }
 ```
+![post.png](assets%2Fimages%2Fpost.png)
 
 Models are loaded from the `models/` directory. Feature validation is performed using `features.json`. The system supports sub-10ms latency (95th percentile).
 
 ---
 
-## Real time working POC
+## Real-Time Working POC
 
+The Real-Time Working Proof of Concept (POC) demonstrates the end-to-end functionality of our fraud detection pipeline in a live environment.  
+It integrates the **FastAPI scoring service**, **synthetic data streamer**, and **Streamlit monitoring dashboard** to replicate a real-world fraud detection workflow.
 
+In this setup:
+- **Synthetic transactions** are continuously generated and streamed to the API.
+- The **API** applies the trained LightGBM ensemble model to score each transaction in real time.
+- Predictions are logged and instantly visualized in the **dashboard**, providing actionable insights into fraud trends, score distributions, and live transaction activity.
 
-(Existing content unchanged)
+This POC validates that the system can operate under real-world constraints—handling streaming data, low-latency inference, and dynamic visualization—making it ready for production deployment.
+
 
 ---
 
@@ -388,10 +436,34 @@ This script orchestrates:
 
 ---
 
-## Credits
+## License
+This project is licensed under the MIT License – see [LICENSE](LICENSE) for details.
 
-(Existing content unchanged)
+---
 
-Models are loaded from the `models/` directory. Feature validation is performed using `features.json`. The system supports sub-10ms latency (95th percentile).
+## References
+
+1. López-Rojas, E. A., & Axelsson, S. (2014). BankSim: A bank payment simulation for fraud detection research. In Proceedings of the 26th European Modeling & Simulation Symposium (EMSS), 249–255.
+
+2. Chawla, N. V., Bowyer, K. W., Hall, L. O., & Kegelmeyer, W. P. (2002). SMOTE: Synthetic Minority Over-sampling Technique. Journal of Artificial Intelligence Research, 16, 321–357.
+
+3. Chen, T., & Guestrin, C. (2016). XGBoost: A scalable tree boosting system. Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, 785–794.
+
+4. Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., & Liu, T.-Y. (2017). LightGBM: A highly efficient gradient boosting decision tree. Advances in Neural Information Processing Systems, 30.
+
+5. Prokhorenkova, L., Gusev, G., Vorobev, A. V., Dorogush, A. V., & Gulin, A. (2018). CatBoost: Unbiased boosting with categorical features. Advances in Neural Information Processing Systems, 31.
+
+6. Dou, Y., Liu, Z., Sun, L., Deng, Y., Peng, H., & Yu, P. S. (2020). Enhancing graph neural network-based fraud detectors against camouflaged fraudsters. Proceedings of the 29th ACM International Conference on Information & Knowledge Management, 315–324.
+
+---
+
+## Contributors
+This project was developed by:
+
+Mani Jose – manijosevg@gmail.com
+
+Nakul Krishna R – nakulkrishna96@gmail.com
+
+Special thanks to the maintainers of LightGBM, XGBoost, Optuna, Imbalanced-Learn, and Streamlit, whose open-source contributions made this work possible.
 
 ---
