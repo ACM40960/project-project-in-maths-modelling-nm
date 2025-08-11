@@ -28,7 +28,7 @@ from .features import engineer  # reuse notebook feature logic
 boosters, THRESHOLD = load()
 
 # Load the master feature list saved during training
-MODEL_DIR = pathlib.Path(__file__).resolve().parent / "models"
+MODEL_DIR = pathlib.Path(__file__).resolve().parents[2] / "models"
 with open(MODEL_DIR / "features.json") as f:
     FEATURES = json.load(f)                  # ordered 39-column schema
 
