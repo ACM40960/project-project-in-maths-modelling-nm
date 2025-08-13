@@ -313,7 +313,9 @@ highlighting the tradeoff between capturing fraud and avoiding false alarms.
 #### ROC Curves (All Models)
 
 ![ROC Curves – All Models](assets/images/roc_curves_all_models.png)
+
 The ROC curves for all models are tightly packed near the top-left corner, indicating excellent separation between fraud and non-fraud. Despite this, ROC alone can overstate performance in imbalanced datasets—hence the focus on AUPRC in our selection process.
+
 ---
 
 
