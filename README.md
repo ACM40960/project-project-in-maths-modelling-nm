@@ -180,6 +180,7 @@ This command trains all models, saves them to models/.
 | `tools/plot_model_scores.py`       | Creates AUPRC, AUROC, and bar charts from model scores. Output saved in `assets/images/`.  |
 | `tools/run_demo.py`                | Runs the full system: API, Streamlit dashboard, and streaming simulation.                  |
 | `tools/stream_and_score.py`        | Simulates real-time transactions and streams them to the `/score` endpoint.                |
+| `tools/feature_imp_extractor.py`   | Tool to extract the important gain based features from best model.                         |                 
 
 Example: Run the Full End-to-End Demo
 ``` bash
