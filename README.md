@@ -392,13 +392,15 @@ Example request:
   ...
 }
 ```
-![post.png](assets%2Fimages%2Fpost.png)
+![post.png](assets%2Fimages%2Fpost_request.png)
 
 Models are loaded from the `models/` directory. Feature validation is performed using `features.json`. The system supports sub-10ms latency (95th percentile).
 
 ---
 
 ## Real-Time Working POC
+
+![post.png](assets%2Fimages%2Fsystem.png)
 
 The Real-Time Working Proof of Concept (POC) demonstrates the end-to-end functionality of our fraud detection pipeline in a live environment.  
 It integrates the **FastAPI scoring service**, **synthetic data streamer**, and **Streamlit monitoring dashboard** to replicate a real-world fraud detection workflow.
