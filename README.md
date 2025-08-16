@@ -1,4 +1,9 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
+[![Version](https://img.shields.io/github/v/tag/yourname/banksim-fraud?label=version)](https://github.com/yourname/banksim-fraud/releases)
+
 # Fraud Detection in Financial Transactions
+***Real-time LightGBM ensemble + SDV streaming + FastAPI dashboard.***
 
 This project builds, tunes, and evaluates multiple machine learning models for credit card fraud detection using the open-source **BankSim** dataset. It includes synthetic data generation, feature engineering, class imbalance strategies, and model deployment components.
 
@@ -7,6 +12,7 @@ This project builds, tunes, and evaluates multiple machine learning models for c
 ## Table of Contents
 
 1. [Overview](#overview)
+   * [Quick Start](#quick-start)
    * [Highlights](#highlights)
 2. [Requirements](#requirements)
 3. [Project Structure](#project-structure)
@@ -40,6 +46,13 @@ This project builds, tunes, and evaluates multiple machine learning models for c
 Fraud detection is a rare-event classification problem with high costs for false negatives. We build and benchmark four modeling pipelines on the **BankSim** dataset.
 
 This project systematically compares four modeling approaches, all grounded in domain-informed behavioral features and tailored class imbalance strategies.
+
+### Quick Start
+
+```bash
+pip install -r requirements.txt
+python tools/run_demo.py
+```
 
 ---
 
@@ -86,6 +99,7 @@ banksim-fraud/
 │   ├── plot_model_scores.py      # Generate AUROC/AUPRC plots
 │   ├── run_demo.py               # Launch API, streamer, dashboard
 │   └── stream_and_score.py       # Stream synthetic txns to API
+│   └── feature_imp_extractor.py  # Tool to extract the important gain based features from best model
 ├── .gitignore
 └── requirements.txt
 
@@ -181,6 +195,9 @@ This will:
 
 
 ## Methodology
+
+![Methodology](assets/images/Methodology.png)
+
 
 ### Dataset
 We use the BankSim dataset — an agent-based simulation of real-world financial transactions — as the foundation for training and evaluating our fraud detection models.
@@ -435,6 +452,10 @@ This script orchestrates:
 * A synthetic streaming engine (tools/stream_and_score.py)
 
 * A Streamlit dashboard for visualizing fraud predictions (tools/dashboard.py)
+
+![Dashboard-1](assets/images/Dashboard-1.png)
+![Dashboard-1](assets/images/Dashboard-2.png)
+
 
 ---
 
