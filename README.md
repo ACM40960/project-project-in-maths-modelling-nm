@@ -1,6 +1,5 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
-[![Version](https://img.shields.io/github/v/tag/yourname/banksim-fraud?label=version)](https://github.com/yourname/banksim-fraud/releases)
 
 # Fraud Detection in Financial Transactions
 ***Real-time LightGBM ensemble + SDV streaming + FastAPI dashboard.***
