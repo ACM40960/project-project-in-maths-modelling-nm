@@ -11,32 +11,38 @@ This project builds, tunes, and evaluates multiple machine learning models for c
 ## Table of Contents
 
 1. [Overview](#overview)
-   * [Quick Start](#quick-start)
-   * [Highlights](#highlights)
+    * [Quick Start](#quick-start)
+    * [Highlights](#highlights)
 2. [Requirements](#requirements)
 3. [Project Structure](#project-structure)
 4. [Setup](#setup)
-   * [Basic Setup](#basic-setup)
-   * [Using the Package](#using-the-package)
-   * [Available Tools](#available-tools)
+    * [Basic Setup](#basic-setup)
+    * [Using the Package](#using-the-package)
+    * [Available Tools](#available-tools)
 5. [Methodology](#methodology)
-   * [Dataset](#dataset)
-   * [Feature Engineering](#feature-engineering)
-   * [Modeling Approaches](#modeling-approaches)
-   * [Evaluation](#evaluation)
-     * [Precision-Recall Curves (All Models)](#precision-recall-curves-all-models)
-     * [ROC Curves (All Models)](#roc-curves-all-models)
+    * [Dataset](#dataset)
+    * [Feature Engineering](#feature-engineering)
+    * [Data Challenges & Mitigations](#data-challenges--mitigations)
+    * [Modeling Approaches](#modeling-approaches)
+    * [Evaluation](#evaluation)
+        * [Precision-Recall Curves (All Models)](#precision-recall-curves-all-models)
+        * [ROC Curves (All Models)](#roc-curves-all-models)
 6. [Model Performance – LightGBM Ensemble (EU 0.05)](#model-performance--lightgbm-ensemble-eu-005)
-   * [AUROC vs AUPRC Summary](#auroc-vs-auprc-summary)
-   * [Calibration & Confusion Matrix](#calibration--confusion-matrix)
-   * [Feature Importance](#feature-importance)
+    * [AUROC vs AUPRC Summary](#auroc-vs-auprc-summary)
+    * [Calibration & Confusion Matrix](#calibration--confusion-matrix)
+    * [Feature Importance](#feature-importance)
+    * [Gain-Based Feature Importance](#gain-based-feature-importance)
 7. [Scoring API](#scoring-api)
 8. [Real-Time Working POC](#real-time-working-poc)
 9. [Synthetic Data Generation](#synthetic-data-generation)
 10. [Dashboard](#dashboard)
-11. [License](#license)
-12. [References](#references)
-13. [Contributors](#contributors)
+11. [Future Work](#future-work)
+12. [Limitations](#limitations)
+13. [License](#license)
+14. [Ethical Considerations](#ethical-considerations)
+15. [References](#references)
+16. [Contributors](#contributors)
+
 
 ---
 
@@ -97,8 +103,8 @@ banksim-fraud/
 │   ├── model_comparison.py       # Compare models and output scores
 │   ├── plot_model_scores.py      # Generate AUROC/AUPRC plots
 │   ├── run_demo.py               # Launch API, streamer, dashboard
-│   └── stream_and_score.py       # Stream synthetic txns to API
-│   └── feature_imp_extractor.py  # Tool to extract the important gain based features from best model
+│   ├── stream_and_score.py       # Stream synthetic txns to API
+│   └──feature_imp_extractor.py  # Tool to extract the important gain based features from best model
 ├── .gitignore
 └── requirements.txt
 
@@ -229,7 +235,6 @@ The dataset is highly imbalanced:
 * No missing values.
 
 
-
 ### Feature Engineering
 
 Our feature engineering strategy aimed to transform the raw transaction logs into semantically meaningful, behavior-aware attributes that reflect temporal trends, entity relationships, and situational anomalies.
@@ -257,6 +262,32 @@ Encoded Categorical Fields:
 * One-hot encoding applied to `category`, `gender`, `age`
 
 Implementation was handled in `features.py` using efficient `groupby` operations with rolling windows. Care was taken to prevent **data leakage**—only historical data up to the current transaction was used to compute feature values. The final feature matrix was designed for compatibility with both batch and streaming inference.
+
+
+## Data Challenges & Mitigations
+
+Working with highly imbalanced, synthetic transaction data posed several challenges:
+
+- **Temporal Leakage Risk**
+    - All rolling and count-based features were computed using `.shift(1)` to ensure only past information was available.
+    - Out-of-time splits (step ≤ 600 train, > 600 test) were used to simulate deployment.
+
+- **Class Imbalance**
+    - Fraud prevalence ~1.2% meant naive models defaulted to predicting all transactions as legitimate.
+    - Addressed via undersampling ensembles, weighted loss, and SMOTE baselines.
+
+- **High-Cardinality IDs**
+    - Raw customer/merchant IDs were not one-hot encoded (to avoid exploding feature dimensions).
+    - Instead, ID-based aggregates (counts, unique merchants, first-time flags) were engineered.
+
+- **Synthetic vs. Realistic Behavior**
+    - BankSim is a simulation; distributions were validated (e.g., heavy-tailed amounts, realistic category frequencies).
+    - Stress-testing was done with SDV synthetic streams to ensure robustness under varied distributions.
+
+
+
+
+
 
 ### Modeling Approaches
 
@@ -360,17 +391,27 @@ This model offers the best precision-recall tradeoff, meaning it can detect most
 ![Calibration Curve](assets/images/combined_calibration_confusion.png)
 
 The calibration curve shows that predicted fraud probabilities are well-aligned with observed outcomes—indicating well-calibrated confidence scores. The confusion matrix validates that the model **captures most fraud cases** while keeping false positives **very low**.
+This confirms that the model detects most fraud cases while maintaining a very low false positive rate
 
 ---
 
-### Feature Importance
+### Gain-Based Feature Importance
 
 ![lgbm_feature_importance.png](assets%2Fimages%2Flgbm_feature_importance.png)
 
 * Derived from LightGBM’s built-in gain metric.
-* Highlights features like `amount_zscore_24h`, `txn_count_24h`, and `is_first_time_pair` as top predictors.
 
-Fraud decisions rely heavily on behavioral changes—such as sudden spikes in transaction value, unusual activity volume, or first-time customer–merchant interactions. This aligns with fraud domain insights and boosts model interpretability.
+- **Top Features:**
+    - `amount_zscore_24h` – unusual spending compared to 24h history
+    - `txn_count_24h` – short-term burst activity
+    - `is_first_time_pair` – new customer–merchant relationships
+    - `unique_merchants_count` – diversity of merchant interactions
+- **Secondary Features:**
+    - `is_night`, `mean_amount_24h`, merchant frequency counts
+- **Lower Impact:**
+    - Demographics (`age`, `gender`) contributed little predictive power
+
+This confirms that **behavioral and relational signals** drive fraud prediction far more than static demographic features, aligning with domain intuition.
 
 ---
 ### Scoring API
@@ -447,6 +488,7 @@ You can launch the complete system—including the API, streamer, and dashboard�
 ```
 python tools/run_demo.py
 ```
+
 This script orchestrates:
 
 * A FastAPI scoring service (src/banksim_fraud/api.py)
@@ -456,15 +498,72 @@ This script orchestrates:
 * A Streamlit dashboard for visualizing fraud predictions (tools/dashboard.py)
 
 ![Dashboard-1](assets/images/Dashboard-1.png)
-![Dashboard-1](assets/images/Dashboard-2.png)
+![Dashboard-2](assets/images/Dashboard-2.png)
 
 
 ---
+
+## Future Work
+
+
+Although the current system demonstrates state-of-the-art performance on the BankSim dataset, fraud detection is a constantly evolving challenge. Future work will focus on expanding feature richness, improving adaptability to changing fraud patterns, and scaling the pipeline for real-world deployment.
+
+- **Integration of Additional Fraud Signals**  
+  Extend features with external attributes such as IP address, device fingerprinting, geolocation, and merchant reputation.
+
+- **Dynamic Model Updating**  
+  Implement online learning or periodic retraining to address **data drift** as fraud patterns evolve. Adaptive thresholds could also be explored.
+
+- **Explainability & Fairness**  
+  Apply SHAP and counterfactual explanations for transaction-level interpretability. Audit fairness to avoid bias across customer demographics.
+
+- **Advanced Ensemble Strategies**  
+  Move beyond bagged LightGBM to heterogeneous ensembles combining LightGBM, XGBoost, CatBoost, and neural networks.
+
+- **Graph-based Fraud Detection**  
+  Model customer–merchant interactions as a graph and leverage **Graph Neural Networks (GNNs)** for detecting fraud rings.
+
+- **Real-World Streaming at Scale**  
+  Integrate Kafka or cloud-based message queues to stress-test the system under millions of transactions/day. Optimize API latency further.
+
+- **Human-in-the-Loop Feedback**  
+  Add analyst feedback loops where flagged alerts are confirmed/dismissed, improving retraining quality.
+
+- **Broader Comparative Benchmarks**  
+  Benchmark against other imbalance handling (ADASYN, Tomek Links) and anomaly detection baselines (Isolation Forest, Autoencoders).
+
+---
+
+
+## Limitations
+
+While the system performs strongly in evaluation, several limitations remain:
+
+- **Synthetic Data Dependency**
+    - BankSim is simulated and may not capture all real-world fraud strategies. Deployment on real banking data is untested.
+
+- **Feature Scope**
+    - External fraud signals (e.g., device fingerprinting, IP geolocation) are not included, limiting realism.
+
+- **Sampling Bias**
+    - Undersampling ensembles (EU) may discard useful legitimate data, and SMOTE-generated samples may distort boundaries.
+
+- **Operational Constraints**
+    - Real-world systems require integration with production pipelines (e.g., Kafka streams, containerized APIs) and fairness audits, which remain out of scope here.
+
+---
+
 
 ## License
 This project is licensed under the MIT License – see [LICENSE](LICENSE) for details.
 
 ---
+
+## Ethical Considerations
+Fraud detection systems impact real users: false positives may block legitimate transactions, while false negatives risk financial losses. Ensuring fairness across demographic groups and auditing bias is essential. Our work is limited to simulated data and does not process personally identifiable information (PII).
+
+---
+
 
 ## References
 
