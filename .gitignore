@@ -64,3 +64,5 @@ yarn-error.log*
 *.secret
 *.key
 *.pem
+
+*:Zone.Identifier
