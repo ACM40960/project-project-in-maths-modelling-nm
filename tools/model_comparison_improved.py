@@ -39,9 +39,9 @@ from banksim_fraud.features import engineer, feature_list
 # Config / IO
 # ---------------------------
 RAW_PATH = "data/bs140513_032310.csv"
-SAVE_PATH = "models/model_scores.csv"
-PRED_PATH = "models/final_predictions.csv"
-PRED_ALL_PATH = "models/final_predictions_all.csv"
+SAVE_PATH = "models/model_scores_improved.csv"
+PRED_PATH = "models/final_predictions_improved.csv"
+PRED_ALL_PATH = "models/final_predictions_all_improved.csv"
 
 # ---------------------------
 # Helpers
