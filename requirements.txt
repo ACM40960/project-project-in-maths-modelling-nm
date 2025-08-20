@@ -6,6 +6,7 @@ requests>=2.28
 # ML
 lightgbm>=3.3
 scikit-learn>=1.1
+imbalanced-learn>=0.11
 
 # SDV for synthetic generation
 sdv>=1.5.0
@@ -19,3 +20,4 @@ streamlit>=1.25
 
 # Optional (logging, etc.)
 python-dotenv
+
