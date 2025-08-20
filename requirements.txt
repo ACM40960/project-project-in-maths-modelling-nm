@@ -18,6 +18,10 @@ uvicorn[standard]>=0.22
 # Dashboard
 streamlit>=1.25
 
+# Visualization
+matplotlib>=3.6
+
 # Optional (logging, etc.)
 python-dotenv
+
 
